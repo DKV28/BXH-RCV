@@ -2,8 +2,8 @@
    CẤU HÌNH — điền 2 giá trị từ Supabase (Project Settings → API):
    ===================================================================== */
 window.APP_CONFIG = {
-  SUPABASE_URL: "",       // ví dụ: https://abcdxyz.supabase.co
-  SUPABASE_ANON_KEY: "",  // "anon public" key (KHÔNG dùng service_role key)
+  SUPABASE_URL: "https://ltfccbvbjbewvragftcy.supabase.co",       // ví dụ: https://abcdxyz.supabase.co
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0ZmNjYnZiamJld3ZyYWdmdGN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0ODU0MDAsImV4cCI6MjA5OTA2MTQwMH0.V7NbxYq07znKZvQl3wzCge8QLrbqRLf46viw518FL7M",  // "anon public" key (KHÔNG dùng service_role key)
 
   REFRESH_SECONDS: 15,    // chu kỳ polling dự phòng cho leaderboard
 };
