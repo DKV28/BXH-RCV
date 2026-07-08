@@ -60,7 +60,7 @@ create table if not exists public.app_secrets (
 --    Đổi 'CHANGE_ME_admin_pass' thành passphrase của bạn TRƯỚC khi Run.
 -- ---------------------------------------------------------------------
 insert into public.app_secrets(id, admin_hash)
-values (1, extensions.crypt('CHANGE_ME_admin_pass', extensions.gen_salt('bf')))
+values (1, extensions.crypt('123123', extensions.gen_salt('bf')))
 on conflict (id) do nothing;
 -- Đổi mật khẩu sau này:
 --   update public.app_secrets set admin_hash = extensions.crypt('mat_khau_moi', extensions.gen_salt('bf')) where id = 1;
