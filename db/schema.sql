@@ -325,7 +325,7 @@ create or replace function public.admin_upload_roster(p_pass text, p_rows jsonb)
 returns json language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.admin_check(p_pass) then return json_build_object('ok', false, 'error', 'unauthorized'); end if;
-  delete from public.staff_roster;
+  delete from public.staff_roster where employee_code is not null;  -- WHERE bắt buộc (Supabase chặn DELETE trần)
   insert into public.staff_roster(employee_code, employee_name)
     select btrim(x->>'code'), btrim(x->>'name')
     from jsonb_array_elements(p_rows) x
