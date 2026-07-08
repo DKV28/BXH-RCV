@@ -132,6 +132,8 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:
 h2.sec{font-size:18px;margin-bottom:14px;color:var(--text)}
 h2.sec small{font-weight:500;font-size:13px;color:var(--muted);margin-left:8px}
 input[type=file]{padding:8px;cursor:pointer}
+details.bulk summary{cursor:pointer;color:var(--orange);font-weight:600;font-size:14px;user-select:none}
+details.bulk[open]{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#0c1220}
 
 /* form áp phích: cột nhập + cột preview */
 .poster-form{display:grid;grid-template-columns:1fr 240px;gap:22px;align-items:start}

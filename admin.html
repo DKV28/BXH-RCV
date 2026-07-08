@@ -84,6 +84,16 @@
           <div class="preview-box" id="pPreview"><span class="muted">Chưa có ảnh</span></div>
         </div>
       </div>
+      <details class="bulk" style="margin-top:14px">
+        <summary>➕ Thêm hàng loạt (dán danh sách — tiện cho 60–100 áp phích)</summary>
+        <p class="muted" style="font-size:13px;margin:8px 0">Mỗi dòng: <code>Tên áp phích | assets/posters/anh.jpg</code>
+          — ngăn cách bằng dấu <code>|</code> hoặc Tab (dán 2 cột từ Excel được). Phần ảnh có thể để trống.</p>
+        <textarea id="bulkPosters" placeholder="Áp phích 01 | assets/posters/ap01.jpg&#10;Áp phích 02 | assets/posters/ap02.jpg"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="bulkAddBtn" type="button">Thêm tất cả</button>
+          <span class="muted" id="bulkMsg"></span>
+        </div>
+      </details>
       <div id="posterMsg" style="margin-top:12px"></div>
       <div style="overflow-x:auto;margin-top:8px"><table id="posterTable"></table></div>
     </div>
@@ -330,6 +340,33 @@ async function delPoster(id){
   if(!confirm('Xoá áp phích này? Mọi phiếu cho nó cũng bị xoá.')) return;
   try{ await rpc('admin_delete_poster', { p_id:+id }); refreshPosters(); }
   catch(e){ alert('Lỗi: '+e.message); }
+}
+
+// Nhập hàng loạt áp phích
+$('bulkAddBtn').addEventListener('click', async ()=>{
+  const rows = parseBulkPosters($('bulkPosters').value);
+  if(!rows.length){ $('bulkMsg').textContent = 'Không đọc được dòng nào.'; return; }
+  if(!confirm('Thêm '+rows.length+' áp phích?')) return;
+  $('bulkAddBtn').disabled = true; $('bulkMsg').textContent = 'Đang thêm...';
+  try{
+    const d = await rpc('admin_bulk_add_posters', { p_rows: rows });
+    $('bulkMsg').textContent = 'Đã thêm '+d.count+' áp phích.';
+    $('bulkPosters').value = '';
+    refreshPosters();
+  }catch(e){ $('bulkMsg').textContent = 'Lỗi: '+e.message; }
+  finally{ $('bulkAddBtn').disabled = false; }
+});
+function parseBulkPosters(text){
+  const out=[];
+  text.split(/\r?\n/).forEach(line=>{
+    if(!line.trim()) return;
+    const parts = line.split(/\t|\|/);
+    const name = (parts[0]||'').trim();
+    const image_url = (parts[1]||'').trim();
+    if(!name) return;
+    out.push({ name, image_url });
+  });
+  return out;
 }
 
 // ---------- Roster ----------

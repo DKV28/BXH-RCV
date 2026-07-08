@@ -66,6 +66,8 @@ cần bật thủ công: **Database → Replication → `supabase_realtime`** �
 Mở `admin.html` → nhập passphrase, rồi làm theo thứ tự:
 1. Mục **Áp phích**: nhập tên, **tải ảnh lên** (chọn file — ảnh tự động nén tối đa 1400px cho nhẹ)
    *hoặc* dán link ảnh → xem trước → **Thêm**. Có thể **Sửa / Ẩn / Xoá** sau đó.
+   - Nhiều áp phích (60–100): mở **➕ Thêm hàng loạt**, dán mỗi dòng `Tên | assets/posters/anh.jpg`
+     (dán 2 cột từ Excel được) → **Thêm tất cả**.
 2. Mục **Danh sách nhân viên**: dán `mã,tên` (mỗi dòng 1 người — dán thẳng từ Excel được) → **Tải lên danh sách**.
    ⚠️ **Bắt buộc làm trước khi mở bình chọn**, vì nhân viên phải khớp danh sách này mới vote được.
 3. Bấm **Mở bình chọn**.

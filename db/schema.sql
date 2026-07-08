@@ -320,6 +320,27 @@ begin
   return json_build_object('ok', true);
 end; $$;
 
+-- Thêm nhiều áp phích 1 lần. p_rows = [{name, image_url}, ...] (image_url là đường dẫn/URL).
+create or replace function public.admin_bulk_add_posters(p_pass text, p_rows jsonb)
+returns json language plpgsql security definer set search_path = public, extensions as $$
+declare v_count int; v_start int;
+begin
+  if not public.admin_check(p_pass) then return json_build_object('ok', false, 'error', 'unauthorized'); end if;
+  select coalesce(max(sort_order), 0) into v_start from public.posters;
+  with ins as (
+    insert into public.posters(name, image_url, sort_order, active)
+    select btrim(x->>'name'),
+           nullif(btrim(x->>'image_url'), ''),
+           v_start + (row_number() over ())::int,
+           true
+    from jsonb_array_elements(p_rows) x
+    where nullif(btrim(x->>'name'), '') is not null
+    returning 1
+  )
+  select count(*) into v_count from ins;
+  return json_build_object('ok', true, 'count', v_count);
+end; $$;
+
 -- Upload danh sách nhân viên chính thức (thay toàn bộ). p_rows = [{code,name},...]
 create or replace function public.admin_upload_roster(p_pass text, p_rows jsonb)
 returns json language plpgsql security definer set search_path = public, extensions as $$
@@ -415,6 +436,7 @@ grant execute on function public.admin_list_posters(text)                   to a
 grant execute on function public.admin_get_poster(text, bigint)             to anon, authenticated;
 grant execute on function public.admin_upsert_poster(text, bigint, text, text, int, boolean) to anon, authenticated;
 grant execute on function public.admin_delete_poster(text, bigint)          to anon, authenticated;
+grant execute on function public.admin_bulk_add_posters(text, jsonb)        to anon, authenticated;
 grant execute on function public.admin_upload_roster(text, jsonb)           to anon, authenticated;
 grant execute on function public.admin_get_raw_votes(text)                  to anon, authenticated;
 grant execute on function public.admin_get_final_results(text)              to anon, authenticated;
