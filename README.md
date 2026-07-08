@@ -93,8 +93,12 @@ board.html        leaderboard real-time
 admin.html        trang quản trị
 assets/config.js  SUPABASE_URL / ANON_KEY (điền tay)
 assets/styles.css style chung (cam/vàng WPSD)
+assets/vendor/supabase.js  thư viện @supabase/supabase-js (đóng gói sẵn, không cần CDN)
 db/schema.sql     toàn bộ bảng + RLS + RPC + realtime
 ```
+
+> Thư viện Supabase được nhúng sẵn trong `assets/vendor/` nên web **không phụ thuộc CDN ngoài** khi
+> chạy — an toàn cho mạng nội bộ/hội trường có thể chặn CDN.
 
 ## Ghi chú bảo mật
 
