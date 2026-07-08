@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bảng bình chọn áp phích – RCV WPSD 2026</title>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="sub">RUNG CHUÔNG VÀNG · WPSD 2026</div>
+    <h1>Bảng bình chọn áp phích</h1>
+  </div>
+  <div class="status">
+    <span class="total-votes" id="totalVotes"></span>
+    <span id="updated">—</span>
+    <span class="dot" id="dot"></span>
+  </div>
+</header>
+
+<main>
+  <div class="setup hidden" id="setup">
+    <h2>⚙️ Chưa cấu hình Supabase</h2>
+    <p>Điền <code>SUPABASE_URL</code> + <code>SUPABASE_ANON_KEY</code> trong <code>assets/config.js</code>
+       và chạy <code>db/schema.sql</code>. Xem <code>README.md</code>.</p>
+  </div>
+
+  <div id="board" class="hidden">
+    <div class="podium" id="podium"></div>
+    <div class="section-title">Bảng xếp hạng đầy đủ</div>
+    <div class="bars" id="bars"></div>
+    <div class="footer">Cập nhật real-time · Tự làm mới mỗi <span id="intv">15</span> giây</div>
+  </div>
+
+  <div class="setup hidden" id="empty">
+    <h2>Chưa có dữ liệu</h2>
+    <p class="muted">Chưa có áp phích hoặc chưa có phiếu nào. Thêm áp phích trong trang quản trị và mở bình chọn.</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script>
+const sb = window.getSupabase();
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+const medals = ['🥇','🥈','🥉'];
+const REFRESH = (window.APP_CONFIG.REFRESH_SECONDS)||15;
+$('intv').textContent = REFRESH;
+
+function setDot(ok){ $('dot').classList.toggle('err', !ok); }
+
+if(!sb){
+  $('setup').classList.remove('hidden');
+} else {
+  fetchData();
+  setInterval(fetchData, REFRESH*1000);
+  subscribeRealtime();
+}
+
+function render(data){
+  $('board').classList.remove('hidden');
+  $('empty').classList.add('hidden');
+
+  const max = Math.max(...data.map(d=>d.votes), 1);
+  const total = data.reduce((s,d)=>s+d.votes,0);
+  $('totalVotes').textContent = 'Tổng: '+fmt(total)+' phiếu';
+
+  // PODIUM top 3 (p1 ở giữa)
+  const order=[1,0,2];
+  const podium=$('podium'); podium.innerHTML='';
+  order.forEach(idx=>{
+    const d=data[idx];
+    const cls=['p2','p1','p3'][order.indexOf(idx)];
+    if(!d){ podium.innerHTML+='<div></div>'; return; }
+    podium.innerHTML+=`
+      <div class="pcard ${cls}">
+        <div class="rank">${idx+1}</div>
+        <div class="medal">${medals[idx]||''}</div>
+        <div class="name">${esc(d.name)}</div>
+        <div class="score">${fmt(d.votes)}<small> phiếu</small></div>
+      </div>`;
+  });
+
+  // BAR RACE
+  const bars=$('bars'); bars.innerHTML='';
+  data.forEach((d,i)=>{
+    const pct=(d.votes/max*100).toFixed(1);
+    bars.innerHTML+=`
+      <div class="bar-row ${i===0?'top1':''}">
+        <div class="bar-rank">${i+1}</div>
+        <div class="bar-name" title="${esc(d.name)}">${esc(d.name)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"><span>${fmt(d.votes)}</span></div></div>
+      </div>`;
+  });
+
+  $('updated').textContent = 'Cập nhật '+new Date().toLocaleTimeString('vi-VN');
+  setDot(true);
+}
+
+async function fetchData(){
+  try{
+    const { data, error } = await sb.rpc('get_results');
+    if(error) throw error;
+    setDot(true);
+    const arr = (data||[]).filter(d=>d && d.name);
+    if(arr.length){ render(arr); }
+    else if($('board').classList.contains('hidden')){ $('empty').classList.remove('hidden'); }
+    // nếu đã render trước đó mà giờ rỗng: giữ nguyên số cũ, không xoá
+  }catch(e){
+    console.error(e); setDot(false);
+    $('updated').textContent='Mất kết nối — thử lại...';
+    // giữ nguyên số cũ đang hiển thị
+  }
+}
+
+// Realtime: có thay đổi vote_selections -> re-query (debounce)
+let t=null;
+function subscribeRealtime(){
+  try{
+    sb.channel('board-selections')
+      .on('postgres_changes', { event:'*', schema:'public', table:'vote_selections' }, ()=>{
+        clearTimeout(t); t=setTimeout(fetchData, 400);
+      })
+      .subscribe();
+  }catch(e){ console.warn('Realtime không khả dụng, dùng polling.', e); }
+}
+</script>
+</body>
+</html>

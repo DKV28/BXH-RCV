@@ -1,63 +1,98 @@
-# Web Leaderboard Bình chọn Áp phích – RCV WPSD 2026
+# Web bình chọn áp phích – RCV WPSD 2026
 
-Màn hình leaderboard real-time chiếu lên màn hình lớn trong ngày Rung Chuông Vàng
-(WPSD 2026, 10/9/2026). Nhân viên bình chọn áp phích qua Google Form → dữ liệu về
-Google Sheet → web đọc CSV liên tục và hiển thị podium + bar race.
+Web app trọn gói **vừa bình chọn vừa xem kết quả real-time** cho ngày Rung Chuông Vàng
+(WPSD 2026, 10/9/2026). Nhân viên nhập **mã nhân viên + tên**, chọn tối đa 3 áp phích;
+kết quả lên leaderboard (podium + bar race) ngay lập tức. Dữ liệu lưu trên **Supabase**.
 
-## Cách hoạt động
+Không cần Google Form/Sheet, không backend riêng — chỉ HTML tĩnh + Supabase.
+
+## Các trang
+
+| File | Vai trò | Ai dùng |
+|---|---|---|
+| `index.html` | **Bình chọn** — nhập mã + tên, chọn ≤3 áp phích, gửi; nhập lại mã để sửa | Nhân viên |
+| `board.html` | **Leaderboard real-time** (podium + bar race) | Màn hình lớn |
+| `admin.html` | **Quản trị** — áp phích, mở/đóng bình chọn, danh sách NV, kết quả cuối | Ban tổ chức |
+
+## Cách hoạt động (kiến trúc)
 
 ```
-Google Form (mã kim cương + chọn áp phích)
-        │
+index.html / board.html / admin.html  (HTML tĩnh, @supabase/supabase-js, ANON KEY)
+        │   mọi ghi/đọc nhạy cảm đi qua RPC SECURITY DEFINER
         ▼
-Sheet 1 – RAW (private): raw votes + validation, tính trọng số CB=1 / LD=3
-        │
-        ▼
-Sheet 2 – KẾT QUẢ (published CSV): 2 cột "Tên áp phích | Tổng điểm"
-        │
-        ▼
-index.html (tĩnh) polling CSV mỗi 15s → podium + bar race
+Supabase Postgres + Realtime
+  posters · votes · vote_selections · settings · staff_roster · app_secrets
 ```
 
-Web **chỉ đọc Sheet 2** (2 cột kết quả đã tính). Không backend, không API key —
-mở `index.html` bằng Chrome là chạy.
+- **Danh tính phiếu:** mỗi mã nhân viên chiếm 1 phiếu (khoá lại). Chủ mã **sửa được** lựa chọn
+  đến khi ban tổ chức đóng bình chọn (mã đóng vai "mật khẩu cá nhân").
+- **Lúc sự kiện:** đếm mọi phiếu có mã chưa dùng. **Cuối ngày:** đối chiếu (mã + tên) với
+  danh sách nhân viên chính thức để lọc phiếu hợp lệ (bỏ dấu, không phân biệt hoa thường).
+- **Bảo mật:** RLS bật mọi bảng; anon **không** đọc trực tiếp `votes`/`staff_roster`. Board chỉ
+  nhận số liệu tổng hợp qua `get_results()` → không lộ tên/mã người vote. Admin bảo vệ bằng passphrase.
+- **Real-time:** board nghe thay đổi `vote_selections` qua Supabase Realtime + polling dự phòng 15s;
+  mất mạng thì giữ nguyên số cũ trên màn hình.
 
-## Cấu hình (1 lần)
+## Cài đặt (một lần)
 
-1. Tab kết quả trong Google Sheet: đúng 2 cột `Tên áp phích` | `Tổng điểm`,
-   cột điểm kéo từ sheet raw bằng công thức / `IMPORTRANGE`.
-2. `File → Share → Publish to web` → chọn đúng tab → định dạng
-   **Comma-separated values (.csv)** → **Publish**.
-3. Copy link CSV, mở `index.html`, dán vào 4 hằng số đầu phần `<script>`:
+### 1. Tạo project Supabase
+- Vào <https://supabase.com> → New project.
+- **Project Settings → API**, copy `Project URL` và `anon public` key.
 
-   ```js
-   const CSV_URL = "";            // link CSV published của Sheet 2
-   const REFRESH_SECONDS = 15;    // chu kỳ làm mới
-   const NAME_COL = 0;            // cột tên áp phích (0-based)
-   const SCORE_COL = 1;           // cột tổng điểm (0-based)
-   ```
+### 2. Cấu hình client
+Mở `assets/config.js`, điền:
+```js
+SUPABASE_URL: "https://<project>.supabase.co",
+SUPABASE_ANON_KEY: "<anon public key>",
+```
+> Chỉ dùng **anon public** key. Tuyệt đối không đặt `service_role` key vào đây.
 
-4. Lưu lại và mở bằng Chrome. Web tự làm phần còn lại.
+### 3. Tạo database
+- Mở `db/schema.sql`, **đổi `CHANGE_ME_admin_pass`** thành mật khẩu quản trị của bạn.
+- Supabase → **SQL Editor → New query** → dán toàn bộ `db/schema.sql` → **Run**.
+- Đổi mật khẩu sau này:
+  ```sql
+  update public.app_secrets
+  set admin_hash = extensions.crypt('mat_khau_moi', extensions.gen_salt('bf')) where id = 1;
+  ```
 
-Nếu chưa dán `CSV_URL`, trang sẽ hiện màn hình hướng dẫn thay vì màn hình trống.
+### 4. Bật Realtime (nếu chưa)
+Schema đã tự thêm `vote_selections` vào publication `supabase_realtime`. Nếu bản Supabase của bạn
+cần bật thủ công: **Database → Replication → `supabase_realtime`** → thêm bảng `vote_selections`.
+(Không bật cũng chạy — board sẽ dùng polling 15s.)
 
-## Tính năng
+### 5. Nhập nội dung qua admin
+Mở `admin.html` → nhập passphrase → **thêm áp phích** (tên + link ảnh) → **Mở bình chọn**.
 
-- **Podium Top 3**: hạng 1 ở giữa & cao hơn, vàng/bạc/đồng, hiện tên + điểm.
-- **Bar race đầy đủ**: mọi áp phích, thanh chạy theo % so với điểm cao nhất,
-  tự sắp xếp lại thứ hạng mỗi lần cập nhật, hạng 1 tô vàng.
-- **Trạng thái kết nối**: chấm xanh (ok) / đỏ (mất kết nối), thời gian cập nhật,
-  tổng điểm.
-- **Tự làm mới** mỗi 15s, chống cache bằng `_t=Date.now()`.
-- **Mất mạng giữ số cũ**, không xóa màn hình.
-- **Responsive**: xem tốt trên màn hình lớn lẫn điện thoại.
+### 6. Deploy
+Đẩy toàn bộ thư mục (tĩnh) lên **Netlify / Vercel / GitHub Pages**. Sau đó:
+- Chiếu `board.html` lên màn hình lớn.
+- Phát link `index.html` (kèm QR nếu muốn) cho nhân viên bình chọn.
 
-## Giới hạn đã biết
+Có thể mở thẳng bằng Chrome từ máy để thử, nhưng nên deploy để nhiều người truy cập.
 
-- Google published CSV trễ cache **~1–5 phút** phía Google → không real-time
-  tuyệt đối (chấp nhận được cho use-case bình chọn áp phích).
+## Cuối ngày – chốt kết quả
 
-## Thương hiệu
+1. Trong `admin.html`, mục **Danh sách nhân viên**: dán CSV `mã,tên` (mỗi dòng 1 người) → **Tải lên**.
+2. Bấm **Đóng bình chọn**.
+3. Bấm **Tính kết quả cuối** → xem kết quả đã đối chiếu + danh sách phiếu bị loại → **Export CSV**.
 
-Cam WPSD `#F26A21` · nền tối `#0e1524` · vàng `#FFD24C`. Có thể thêm logo bệnh
-viện, QR code dẫn tới Form, đổi màu/layout sau.
+## Cấu trúc file
+
+```
+index.html        trang bình chọn
+board.html        leaderboard real-time
+admin.html        trang quản trị
+assets/config.js  SUPABASE_URL / ANON_KEY (điền tay)
+assets/styles.css style chung (cam/vàng WPSD)
+db/schema.sql     toàn bộ bảng + RLS + RPC + realtime
+```
+
+## Ghi chú bảo mật
+
+- Mã nhân viên là "mật khẩu cá nhân" cho việc sửa phiếu — phù hợp sự kiện nội bộ 1 ngày, đã có
+  đối chiếu roster cuối ngày để lọc phiếu gian lận/nhầm.
+- `anon` key là public (nằm trong HTML) — an toàn vì RLS chặn truy cập bảng nhạy cảm và mọi ghi
+  đi qua RPC có kiểm tra. Passphrase admin được lưu dạng hash bcrypt (`pgcrypto`).
+- Muốn chắc hơn cho admin: có thể thay passphrase bằng Supabase Auth (email magic link) cho 1 tài khoản
+  ban tổ chức — cần chỉnh RLS/RPC tương ứng.
