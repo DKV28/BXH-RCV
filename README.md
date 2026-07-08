@@ -104,10 +104,29 @@ db/schema.sql     toàn bộ bảng + RLS + RPC + realtime
 > Thư viện Supabase được nhúng sẵn trong `assets/vendor/` nên web **không phụ thuộc CDN ngoài** khi
 > chạy — an toàn cho mạng nội bộ/hội trường có thể chặn CDN.
 
+## Quy mô lớn (5000–7000 người) — chống quá tải
+
+Đã kiểm thử ở đúng quy mô này. Các điểm cần lưu ý:
+
+1. **Ảnh áp phích — quan trọng nhất.** Với vài nghìn người, **KHÔNG nhúng ảnh vào database**
+   (mỗi người sẽ kéo vài MB qua API Supabase → vượt hạn mức egress 5GB/tháng của gói free).
+   Thay vào đó đặt file ảnh trong `assets/posters/` (xem README trong thư mục đó) và dán đường
+   dẫn — ảnh phục vụ qua **CDN GitHub Pages**, được cache, mỗi người tải 1 lần. Băng thông
+   GitHub Pages ~100GB/tháng, thừa sức.
+2. **Bảng xếp hạng (`board.html`) chỉ chiếu trên màn hình lớn** (vài máy). Trang này dùng
+   Supabase Realtime — gói free giới hạn ~200 kết nối realtime đồng thời, nên **đừng phát link
+   board cho hàng nghìn điện thoại**. Nhân viên chỉ cần trang vote (`index.html`, không dùng
+   realtime). Board đã throttle: lúc cao điểm chỉ cập nhật tối đa ~1 lần/3 giây + polling 15s.
+3. **Ghi phiếu & đếm phiếu rất nhẹ.** `cast_vote` tra cứu bằng khoá chính (có index); `get_results`
+   tổng hợp ~21.000 lượt chọn chỉ mất ~6ms. Postgres/Supabase free thừa sức cho 7000 phiếu.
+4. **Danh sách nhân viên 7000 dòng** upload 1 lần bình thường (đã test). Dán thẳng từ Excel.
+5. Nếu muốn dư dả tuyệt đối (nhiều màn hình xem, biên độ an toàn cao), nâng Supabase lên gói Pro
+   (~$25/tháng) là đủ — nhưng với cách đặt ảnh trên CDN ở trên thì gói **free vẫn chạy tốt**.
+
 ## Ghi chú bảo mật
 
-- Mã nhân viên là "mật khẩu cá nhân" cho việc sửa phiếu — phù hợp sự kiện nội bộ 1 ngày, đã có
-  đối chiếu roster cuối ngày để lọc phiếu gian lận/nhầm.
+- Nhân viên phải nhập đúng **mã + họ tên khớp danh sách** mới vote được (đối chiếu ngay lúc bình chọn);
+  mã cũng là "mật khẩu cá nhân" để sửa lại phiếu của chính mình.
 - `anon` key là public (nằm trong HTML) — an toàn vì RLS chặn truy cập bảng nhạy cảm và mọi ghi
   đi qua RPC có kiểm tra. Passphrase admin được lưu dạng hash bcrypt (`pgcrypto`).
 - Muốn chắc hơn cho admin: có thể thay passphrase bằng Supabase Auth (email magic link) cho 1 tài khoản

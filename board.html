@@ -137,14 +137,20 @@ async function fetchData(){
   }
 }
 
-// Realtime: có thay đổi vote_selections -> re-query (debounce)
-let t=null;
+// Realtime: throttle để lúc cao điểm không truy vấn dồn dập.
+// Có thay đổi -> cập nhật ngay 1 lần, rồi khoá tối thiểu 3s; nếu trong lúc khoá
+// vẫn có thay đổi thì cập nhật thêm 1 lần sau đó. Kết hợp polling 15s nền.
+let rtLocked=false, rtPending=false;
+function onRealtime(){
+  if(rtLocked){ rtPending=true; return; }
+  fetchData();
+  rtLocked=true;
+  setTimeout(()=>{ rtLocked=false; if(rtPending){ rtPending=false; onRealtime(); } }, 3000);
+}
 function subscribeRealtime(){
   try{
     sb.channel('board-selections')
-      .on('postgres_changes', { event:'*', schema:'public', table:'vote_selections' }, ()=>{
-        clearTimeout(t); t=setTimeout(fetchData, 400);
-      })
+      .on('postgres_changes', { event:'*', schema:'public', table:'vote_selections' }, onRealtime)
       .subscribe();
   }catch(e){ console.warn('Realtime không khả dụng, dùng polling.', e); }
 }
