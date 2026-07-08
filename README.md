@@ -68,7 +68,8 @@ Mở `admin.html` → nhập passphrase, rồi làm theo thứ tự:
    *hoặc* dán link ảnh → xem trước → **Thêm**. Có thể **Sửa / Ẩn / Xoá** sau đó.
    - Nhiều áp phích (60–100): mở **➕ Thêm hàng loạt**, dán mỗi dòng `Tên | assets/posters/anh.jpg`
      (dán 2 cột từ Excel được) → **Thêm tất cả**.
-2. Mục **Danh sách nhân viên**: dán `mã,tên` (mỗi dòng 1 người — dán thẳng từ Excel được) → **Tải lên danh sách**.
+2. Mục **Danh sách nhân viên**: **chọn file Excel (.xlsx) hoặc CSV** — cột 1 là mã, cột 2 là họ tên
+   (có dòng tiêu đề cũng được, sẽ tự bỏ) — hoặc dán trực tiếp `mã,tên`. Xem lại rồi bấm **Tải lên danh sách**.
    ⚠️ **Bắt buộc làm trước khi mở bình chọn**, vì nhân viên phải khớp danh sách này mới vote được.
 3. Bấm **Mở bình chọn**.
 
@@ -100,6 +101,8 @@ admin.html        trang quản trị
 assets/config.js  SUPABASE_URL / ANON_KEY (điền tay)
 assets/styles.css style chung (cam/vàng WPSD)
 assets/vendor/supabase.js  thư viện @supabase/supabase-js (đóng gói sẵn, không cần CDN)
+assets/vendor/xlsx.full.min.js  thư viện đọc Excel (chỉ dùng ở admin)
+assets/posters/   nơi đặt file ảnh áp phích (phục vụ qua CDN)
 db/schema.sql     toàn bộ bảng + RLS + RPC + realtime
 ```
 

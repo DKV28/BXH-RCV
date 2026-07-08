@@ -101,8 +101,12 @@
     <!-- Danh sách nhân viên (roster) -->
     <div class="card">
       <h2 class="sec">Danh sách nhân viên <small>⚠️ tải lên TRƯỚC khi mở bình chọn</small></h2>
-      <p class="muted" style="margin-bottom:8px">Nhân viên chỉ vote được khi <b>mã + họ tên khớp</b> danh sách này.
-        Dán mỗi dòng: <code>mã,tên</code> (hoặc mã &lt;tab&gt; tên — tiện dán từ Excel). Dòng tiêu đề sẽ tự bỏ.</p>
+      <p class="muted" style="margin-bottom:8px">Nhân viên chỉ vote được khi <b>mã + họ tên khớp</b> danh sách này.</p>
+      <div class="row" style="gap:10px;margin-bottom:10px;align-items:center">
+        <input id="rosterFile" type="file" accept=".xlsx,.xls,.csv" style="padding:8px;max-width:320px">
+        <span class="muted" id="rosterFileMsg">📄 Chọn file Excel/CSV — <b>cột 1 = mã</b>, <b>cột 2 = họ tên</b> (có dòng tiêu đề cũng được).</span>
+      </div>
+      <p class="muted" style="font-size:12px;margin-bottom:6px">…hoặc dán trực tiếp (mỗi dòng <code>mã,tên</code> hoặc mã &lt;tab&gt; tên):</p>
       <textarea id="rosterText" placeholder="TAx.12345,Nguyễn Văn A&#10;TAx.12346,Trần Thị B"></textarea>
       <div class="row" style="margin-top:10px">
         <button class="btn" id="uploadRoster">Tải lên danh sách</button>
@@ -140,6 +144,7 @@
 </main>
 
 <script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/xlsx.full.min.js"></script>
 <script src="assets/config.js"></script>
 <script>
 const sb = window.getSupabase();
@@ -370,14 +375,43 @@ function parseBulkPosters(text){
 }
 
 // ---------- Roster ----------
+// Đọc file Excel (.xlsx/.xls) hoặc CSV -> đổ ra ô danh sách để kiểm tra rồi tải lên.
+$('rosterFile').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  $('rosterFileMsg').textContent='Đang đọc file...';
+  try{
+    let matrix;
+    if(/\.csv$/i.test(f.name)){
+      const text = new TextDecoder('utf-8').decode(await f.arrayBuffer());
+      matrix = text.split(/\r?\n/).map(l=>l.split(/\t|,/));
+    }else{
+      if(typeof XLSX==='undefined') throw new Error('Thư viện đọc Excel chưa tải được — thử lại hoặc dùng file CSV');
+      const wb = XLSX.read(await f.arrayBuffer(), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      matrix = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+    }
+    const lines=[];
+    matrix.forEach(r=>{
+      const code=(r[0]==null?'':String(r[0])).trim();
+      const name=(r[1]==null?'':String(r[1])).trim();
+      if(!code && !name) return;
+      lines.push(code+'\t'+name);
+    });
+    $('rosterText').value = lines.join('\n');
+    $('rosterFileMsg').textContent = 'Đã đọc '+lines.length+' dòng từ "'+f.name+'". Kiểm tra bên dưới rồi bấm "Tải lên danh sách".';
+  }catch(err){ console.error(err); $('rosterFileMsg').textContent='Lỗi đọc file: '+err.message; }
+});
+
 $('uploadRoster').addEventListener('click', async ()=>{
   const rows = parseRoster($('rosterText').value);
   if(!rows.length){ $('rosterMsg').textContent='Không đọc được dòng nào.'; return; }
+  $('rosterMsg').textContent = 'Đang tải lên '+rows.length+' nhân viên...';
   try{
     const d = await rpc('admin_upload_roster', { p_rows: rows });
     $('rosterMsg').textContent = 'Đã tải lên '+d.count+' nhân viên.';
   }catch(e){ $('rosterMsg').textContent = 'Lỗi: '+e.message; }
 });
+const ROSTER_HEADERS = new Set(['mã','ma','code','stt','mã nv','ma nv','mã nhân viên','ma nhan vien','mã nhanvien','employee','employee code']);
 function parseRoster(text){
   const out=[];
   text.split(/\r?\n/).forEach(line=>{
@@ -385,7 +419,7 @@ function parseRoster(text){
     const parts = line.split(/\t|,/);
     const code=(parts[0]||'').trim(), name=(parts.slice(1).join(',')||'').trim();
     if(!code) return;
-    if(/^(m[aã]|code)$/i.test(code)) return; // bỏ dòng tiêu đề
+    if(ROSTER_HEADERS.has(code.toLowerCase())) return; // bỏ dòng tiêu đề
     out.push({ code, name });
   });
   return out;
