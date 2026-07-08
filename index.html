@@ -8,6 +8,10 @@
 </head>
 <body>
 
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+<div class="ribbon"></div>
+
 <header>
   <div class="brand">
     <div class="sub">RUNG CHUÔNG VÀNG · WPSD 2026</div>
@@ -33,7 +37,7 @@
     <div class="notice warn hidden" id="closedNote">🔒 Bình chọn hiện đang đóng. Vui lòng quay lại sau.</div>
 
     <div id="voteArea">
-      <div class="card" style="margin-bottom:22px">
+      <div class="card" style="margin-bottom:26px">
         <div class="vote-id">
           <div>
             <label for="code">Mã nhân viên</label>
@@ -56,17 +60,20 @@
       <div class="grid" id="grid"></div>
 
       <div class="votebar">
-        <div class="counter">Đã chọn <b id="selCount">0</b> / <span id="maxCount">3</span></div>
-        <button class="btn" id="submitBtn" disabled>Gửi phiếu bình chọn</button>
+        <div class="votebar-inner">
+          <div class="counter">Đã chọn <b id="selCount">0</b> / <span id="maxCount">3</span></div>
+          <button class="btn" id="submitBtn" disabled>Gửi phiếu bình chọn</button>
+        </div>
       </div>
     </div>
 
     <!-- Cảm ơn -->
-    <div class="card hidden" id="thanks" style="text-align:center;max-width:560px;margin:40px auto">
-      <div style="font-size:52px;margin-bottom:10px">🎉</div>
-      <h2 class="sec" style="justify-content:center">Đã ghi nhận phiếu của bạn!</h2>
-      <p class="muted" id="thanksDetail" style="margin:8px 0 20px"></p>
-      <div class="row" style="justify-content:center">
+    <div class="card hidden" id="thanks" style="text-align:center;max-width:560px;margin:40px auto;position:relative;overflow:hidden">
+      <div id="confettiHost"></div>
+      <div style="font-size:52px;margin-bottom:10px;position:relative">🎉</div>
+      <h2 class="sec" style="justify-content:center;position:relative">Đã ghi nhận phiếu của bạn!</h2>
+      <p class="muted" id="thanksDetail" style="margin:8px 0 20px;position:relative"></p>
+      <div class="row" style="justify-content:center;position:relative">
         <button class="btn ghost" id="editBtn" type="button">Sửa lại lựa chọn</button>
         <a class="btn" href="board.html">Xem bảng xếp hạng</a>
       </div>
@@ -196,6 +203,20 @@ function reasonText(r){
   }
 }
 
+function spawnConfetti(){
+  const host = $('confettiHost');
+  host.innerHTML = '';
+  const colors = ['#F26A21','#FFD24C','#9a54c4','#3ddc84','#ffffff'];
+  for(let i=0;i<36;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const left = (i*37)%100, delay = ((i*13)%20)/10, dur = 2.4+((i*7)%10)/10;
+    const size = 6+(i%3)*3, color = colors[i%colors.length];
+    el.style.cssText = `left:${left}%;width:${size}px;height:${size*1.6}px;background:${color};animation-duration:${dur}s;animation-delay:${delay}s;`;
+    host.appendChild(el);
+  }
+}
+
 $('submitBtn').addEventListener('click', submitVote);
 async function submitVote(){
   const code = $('code').value.trim(), name = $('name').value.trim();
@@ -213,6 +234,7 @@ async function submitVote(){
     $('thanksDetail').textContent = 'Bạn đã chọn: ' + names;
     $('voteArea').classList.add('hidden');
     $('thanks').classList.remove('hidden');
+    spawnConfetti();
     window.scrollTo({top:0, behavior:'smooth'});
   }catch(e){
     console.error(e); setDot(false);
