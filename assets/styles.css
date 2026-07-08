@@ -104,7 +104,7 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-wei
 .poster.sel{border-color:var(--orange)}
 .poster.sel .check{opacity:1;transform:scale(1)}
 .poster .check{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;opacity:0;transform:scale(.6);transition:.15s}
-.poster .thumb{width:100%;aspect-ratio:3/4;object-fit:cover;background:#0c1220;display:block}
+.poster .thumb{width:100%;aspect-ratio:3/4;object-fit:contain;background:#0c1220;display:block}
 .poster .thumb.placeholder{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:40px}
 .poster .pname{padding:12px 14px;font-weight:700;font-size:15px}
 .votebar{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(14,21,36,0),var(--bg) 40%);padding:20px 0 8px;margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -124,6 +124,26 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:var(--text);background:#0c1220;border:1px solid var(--line);border-radius:9px;padding:11px 13px;width:100%;min-height:120px;resize:vertical}
 h2.sec{font-size:18px;margin-bottom:14px;color:var(--text)}
 h2.sec small{font-weight:500;font-size:13px;color:var(--muted);margin-left:8px}
+input[type=file]{padding:8px;cursor:pointer}
+
+/* form áp phích: cột nhập + cột preview */
+.poster-form{display:grid;grid-template-columns:1fr 240px;gap:22px;align-items:start}
+.preview-box{margin-top:6px;background:#0c1220;border:1px dashed var(--line);border-radius:12px;
+  height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.preview-box img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+@media(max-width:720px){ .poster-form{grid-template-columns:1fr} .preview-box{height:220px} }
+
+/* Lightbox xem áp phích phóng to (trang vote) */
+.lightbox{position:fixed;inset:0;background:rgba(4,8,16,.9);display:flex;align-items:center;justify-content:center;
+  z-index:50;padding:24px}
+.lightbox img{max-width:96vw;max-height:88vh;object-fit:contain;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.6)}
+.lightbox .lb-name{position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:18px;font-weight:700;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.7)}
+.lightbox .lb-close{position:absolute;top:18px;right:22px;font-size:34px;color:#fff;cursor:pointer;line-height:1;opacity:.85}
+.lightbox .lb-close:hover{opacity:1}
+.poster .zoom{position:absolute;top:10px;left:10px;width:32px;height:32px;border-radius:50%;
+  background:rgba(12,18,32,.75);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:15px;cursor:zoom-in;border:1px solid var(--line);z-index:2}
+.poster .zoom:hover{background:var(--orange)}
 
 /* ---------- Responsive ---------- */
 @media(max-width:720px){

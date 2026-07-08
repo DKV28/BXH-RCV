@@ -51,17 +51,38 @@
 
     <!-- Quản lý áp phích -->
     <div class="card">
-      <h2 class="sec">Áp phích <small>thêm / sửa / ẩn / xoá</small></h2>
-      <div class="row" style="gap:10px;align-items:end;margin-bottom:14px">
-        <div style="flex:2;min-width:180px"><label>Tên áp phích</label><input id="pName" placeholder="Tên / đơn vị"></div>
-        <div style="flex:3;min-width:200px"><label>Link ảnh (tuỳ chọn)</label><input id="pImg" placeholder="https://..."></div>
-        <div style="width:90px"><label>Thứ tự</label><input id="pOrder" type="number" value="0"></div>
-        <input type="hidden" id="pId">
-        <button class="btn" id="saveposter">Thêm</button>
-        <button class="btn ghost hidden" id="cancelEdit">Huỷ</button>
+      <h2 class="sec" id="posterFormTitle">Thêm áp phích <small>tải ảnh hoặc dán link</small></h2>
+      <div class="poster-form">
+        <div class="pf-fields">
+          <div class="row" style="gap:10px;align-items:end">
+            <div style="flex:2;min-width:180px"><label>Tên áp phích</label><input id="pName" placeholder="Tên / đơn vị / tác giả"></div>
+            <div style="width:90px"><label>Thứ tự</label><input id="pOrder" type="number" value="0"></div>
+          </div>
+          <div style="margin-top:10px">
+            <label>Ảnh áp phích</label>
+            <div class="row" style="gap:10px">
+              <input id="pFile" type="file" accept="image/*" style="padding:8px">
+              <span class="muted" id="pImgState">Chưa có ảnh</span>
+            </div>
+            <div class="row" style="gap:10px;margin-top:8px">
+              <input id="pImg" placeholder="…hoặc dán link ảnh https://..." style="flex:1">
+              <button class="btn ghost sm" id="pRemoveImg" type="button">Xoá ảnh</button>
+            </div>
+            <p class="muted" style="font-size:12px;margin-top:6px">Ảnh tải lên sẽ tự động nén (tối đa 1400px) để nhẹ và hiển thị nhanh.</p>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <input type="hidden" id="pId">
+            <button class="btn" id="saveposter">Thêm</button>
+            <button class="btn ghost hidden" id="cancelEdit">Huỷ</button>
+          </div>
+        </div>
+        <div class="pf-preview">
+          <label>Xem trước</label>
+          <div class="preview-box" id="pPreview"><span class="muted">Chưa có ảnh</span></div>
+        </div>
       </div>
-      <div id="posterMsg"></div>
-      <div style="overflow-x:auto"><table id="posterTable"></table></div>
+      <div id="posterMsg" style="margin-top:12px"></div>
+      <div style="overflow-x:auto;margin-top:8px"><table id="posterTable"></table></div>
     </div>
 
     <!-- Danh sách nhân viên (roster) -->
@@ -171,6 +192,11 @@ async function setOpen(open){
 }
 
 // ---------- Áp phích ----------
+let newImageData = null;   // data URI ảnh mới đã nén (nếu vừa upload)
+let removeImg = false;     // đánh dấu xoá ảnh khi sửa
+let editHasImage = false;  // áp phích đang sửa có ảnh sẵn không
+let editActive = true;     // giữ trạng thái ẩn/hiện khi sửa
+
 async function refreshPosters(){
   const d = await rpc('admin_list_posters'); renderPosters(d.posters);
 }
@@ -181,41 +207,121 @@ function renderPosters(list){
     list.map(p=>`<tr>
       <td>${p.sort_order}</td>
       <td>${esc(p.name)}</td>
-      <td>${p.image_url?`<a href="${esc(p.image_url)}" target="_blank">ảnh</a>`:'<span class="muted">—</span>'}</td>
+      <td>${p.has_image?'🖼️':'<span class="muted">—</span>'}</td>
       <td>${p.votes}</td>
       <td>${p.active?'<span class="pill on">Có</span>':'<span class="pill off">Ẩn</span>'}</td>
       <td class="row">
-        <button class="btn ghost sm" data-edit='${esc(JSON.stringify(p))}'>Sửa</button>
-        <button class="btn ghost sm" data-toggle="${p.id}" data-active="${p.active?0:1}" data-name="${esc(p.name)}" data-img="${esc(p.image_url||'')}" data-order="${p.sort_order}">${p.active?'Ẩn':'Hiện'}</button>
+        <button class="btn ghost sm" data-edit="${p.id}">Sửa</button>
+        <button class="btn ghost sm" data-toggle="${p.id}" data-active="${p.active?0:1}">${p.active?'Ẩn':'Hiện'}</button>
         <button class="btn danger sm" data-del="${p.id}">Xoá</button>
       </td></tr>`).join('');
-  t.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>editPoster(JSON.parse(b.dataset.edit))));
+  t.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>editPoster(+b.dataset.edit)));
   t.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delPoster(b.dataset.del)));
-  t.querySelectorAll('[data-toggle]').forEach(b=>b.addEventListener('click',()=>savePoster({
-    id:+b.dataset.toggle, name:b.dataset.name, image_url:b.dataset.img, sort_order:+b.dataset.order, active:b.dataset.active==='1'
-  })));
+  // Ẩn/Hiện: chỉ đổi active, giữ nguyên ảnh (gửi p_image_url = null).
+  t.querySelectorAll('[data-toggle]').forEach(b=>b.addEventListener('click', async ()=>{
+    try{
+      const cur = await rpc('admin_get_poster', { p_id:+b.dataset.toggle });
+      const p = cur.poster;
+      await rpc('admin_upsert_poster', { p_id:p.id, p_name:p.name, p_image_url:null, p_sort_order:p.sort_order, p_active:(b.dataset.active==='1') });
+      refreshPosters();
+    }catch(e){ alert('Lỗi: '+e.message); }
+  }));
 }
-function editPoster(p){
-  $('pId').value=p.id; $('pName').value=p.name; $('pImg').value=p.image_url||''; $('pOrder').value=p.sort_order;
-  $('saveposter').textContent='Lưu'; $('cancelEdit').classList.remove('hidden');
-  window.scrollTo({top:0,behavior:'smooth'});
+
+async function editPoster(id){
+  try{
+    const d = await rpc('admin_get_poster', { p_id:id });
+    const p = d.poster;
+    resetPosterForm();
+    $('posterFormTitle').innerHTML = 'Sửa áp phích';
+    $('pId').value=p.id; $('pName').value=p.name; $('pOrder').value=p.sort_order;
+    editActive = p.active;
+    editHasImage = !!p.image_url;
+    setPreview(p.image_url||null);
+    $('pImgState').textContent = p.image_url ? 'Đang dùng ảnh hiện tại' : 'Chưa có ảnh';
+    $('saveposter').textContent='Lưu'; $('cancelEdit').classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){ note('posterMsg','Lỗi tải áp phích: '+e.message, 'err'); }
 }
+
 $('cancelEdit').addEventListener('click', resetPosterForm);
 function resetPosterForm(){
   $('pId').value=''; $('pName').value=''; $('pImg').value=''; $('pOrder').value='0';
+  $('pFile').value=''; newImageData=null; removeImg=false; editHasImage=false; editActive=true;
+  setPreview(null); $('pImgState').textContent='Chưa có ảnh';
+  $('posterFormTitle').innerHTML='Thêm áp phích <small>tải ảnh hoặc dán link</small>';
   $('saveposter').textContent='Thêm'; $('cancelEdit').classList.add('hidden'); note('posterMsg','');
 }
-$('saveposter').addEventListener('click', ()=>{
+
+function setPreview(src){
+  const box=$('pPreview');
+  box.innerHTML = src ? `<img src="${esc(src)}" alt="preview">` : '<span class="muted">Chưa có ảnh</span>';
+}
+
+// Nén ảnh phía client trước khi lưu.
+function downscaleImage(file, maxDim=1400, quality=0.82){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.naturalWidth, h=img.naturalHeight;
+      if(Math.max(w,h)>maxDim){ const s=maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const ctx=c.getContext('2d'); ctx.fillStyle='#0c1220'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('Không đọc được ảnh')); };
+    img.src=url;
+  });
+}
+
+$('pFile').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  $('pImgState').textContent='Đang nén ảnh...';
+  try{
+    newImageData = await downscaleImage(f);
+    removeImg=false; $('pImg').value='';
+    setPreview(newImageData);
+    $('pImgState').textContent = 'Ảnh mới: '+Math.round(newImageData.length/1024)+' KB';
+  }catch(err){ note('posterMsg','Lỗi ảnh: '+err.message, 'err'); $('pImgState').textContent='Lỗi ảnh'; }
+});
+
+$('pImg').addEventListener('input', ()=>{
+  const u=$('pImg').value.trim();
+  if(u){ newImageData=null; removeImg=false; $('pFile').value=''; setPreview(u); $('pImgState').textContent='Dùng link ảnh'; }
+  else if(!newImageData){ setPreview(editHasImage?'keep':null); if(editHasImage) reloadEditPreview(); }
+});
+
+$('pRemoveImg').addEventListener('click', ()=>{
+  newImageData=null; removeImg=true; $('pFile').value=''; $('pImg').value='';
+  setPreview(null); $('pImgState').textContent='Sẽ xoá ảnh khi lưu';
+});
+
+// khi xoá link mà đang sửa: nạp lại ảnh cũ để preview
+async function reloadEditPreview(){
+  const id=$('pId').value; if(!id) return;
+  try{ const d=await rpc('admin_get_poster',{p_id:+id}); setPreview(d.poster.image_url||null);
+       $('pImgState').textContent=d.poster.image_url?'Đang dùng ảnh hiện tại':'Chưa có ảnh'; }catch(_){}
+}
+
+$('saveposter').addEventListener('click', async ()=>{
   const name=$('pName').value.trim();
   if(!name){ note('posterMsg','Nhập tên áp phích.', 'warn'); return; }
-  savePoster({ id: $('pId').value?+$('pId').value:null, name, image_url:$('pImg').value.trim(), sort_order:+$('pOrder').value||0, active:true });
-});
-async function savePoster(p){
+  // Xác định tham số ảnh: data URI mới > link > xoá > giữ nguyên/không
+  let img;
+  if(newImageData) img=newImageData;
+  else if($('pImg').value.trim()) img=$('pImg').value.trim();
+  else if(removeImg) img='';
+  else img=null;
+  const id = $('pId').value?+$('pId').value:null;
+  $('saveposter').disabled=true;
   try{
-    await rpc('admin_upsert_poster', { p_id:p.id, p_name:p.name, p_image_url:p.image_url||null, p_sort_order:p.sort_order, p_active:p.active });
+    await rpc('admin_upsert_poster', { p_id:id, p_name:name, p_image_url:img, p_sort_order:+$('pOrder').value||0, p_active:(id?editActive:true) });
     resetPosterForm(); refreshPosters();
   }catch(e){ note('posterMsg','Lỗi: '+e.message, 'err'); }
-}
+  finally{ $('saveposter').disabled=false; }
+});
+
 async function delPoster(id){
   if(!confirm('Xoá áp phích này? Mọi phiếu cho nó cũng bị xoá.')) return;
   try{ await rpc('admin_delete_poster', { p_id:+id }); refreshPosters(); }

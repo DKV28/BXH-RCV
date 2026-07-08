@@ -130,6 +130,7 @@ function renderGrid(){
   g.innerHTML = posters.map(p=>`
     <div class="poster ${selected.has(p.id)?'sel':''}" data-id="${p.id}">
       <div class="check">✓</div>
+      ${p.image_url ? `<div class="zoom" data-zoom="${p.id}" title="Xem lớn">🔍</div>` : ''}
       ${p.image_url
         ? `<img class="thumb" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy"
              onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'thumb placeholder',textContent:'🖼️'}))">`
@@ -137,9 +138,25 @@ function renderGrid(){
       <div class="pname">${esc(p.name)}</div>
     </div>`).join('');
   g.querySelectorAll('.poster').forEach(el=>{
-    el.addEventListener('click', ()=>toggle(parseInt(el.dataset.id,10), el));
+    el.addEventListener('click', e=>{
+      if(e.target.closest('[data-zoom]')) return;   // bấm kính lúp -> không chọn
+      toggle(parseInt(el.dataset.id,10), el);
+    });
+  });
+  g.querySelectorAll('[data-zoom]').forEach(z=>{
+    z.addEventListener('click', e=>{ e.stopPropagation(); openLightbox(parseInt(z.dataset.zoom,10)); });
   });
 }
+
+function openLightbox(id){
+  const p = posters.find(x=>x.id===id); if(!p || !p.image_url) return;
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `<div class="lb-close">×</div><img src="${esc(p.image_url)}" alt="${esc(p.name)}"><div class="lb-name">${esc(p.name)}</div>`;
+  lb.addEventListener('click', ()=>lb.remove());
+  document.body.appendChild(lb);
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.lightbox').forEach(l=>l.remove()); });
 
 function toggle(id, el){
   if(!votingOpen) return;

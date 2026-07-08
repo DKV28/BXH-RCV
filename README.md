@@ -61,8 +61,16 @@ Schema đã tự thêm `vote_selections` vào publication `supabase_realtime`. N
 cần bật thủ công: **Database → Replication → `supabase_realtime`** → thêm bảng `vote_selections`.
 (Không bật cũng chạy — board sẽ dùng polling 15s.)
 
-### 5. Nhập nội dung qua admin
-Mở `admin.html` → nhập passphrase → **thêm áp phích** (tên + link ảnh) → **Mở bình chọn**.
+### 5. Nhập áp phích qua admin
+Mở `admin.html` → nhập passphrase → mục **Áp phích**:
+- Nhập tên, **tải ảnh lên** (chọn file — ảnh tự động nén tối đa 1400px cho nhẹ) *hoặc* dán link ảnh.
+- Xem trước ở cột bên phải → **Thêm**. Có thể **Sửa / Ẩn / Xoá** từng áp phích sau đó.
+- Xong thì bấm **Mở bình chọn**.
+
+> Ảnh được lưu thẳng trong database (dưới dạng data URI đã nén) nên **không cần cấu hình Supabase Storage**.
+> Người bình chọn bấm 🔍 trên mỗi áp phích để xem phóng to trước khi chọn.
+> Với cuộc thi rất nhiều/ảnh rất lớn, có thể chuyển sang Supabase Storage — nhưng cách nhúng DB này đủ dùng
+> và không phải mở quyền upload công khai.
 
 ### 6. Deploy
 Đẩy toàn bộ thư mục (tĩnh) lên **Netlify / Vercel / GitHub Pages**. Sau đó:

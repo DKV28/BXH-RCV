@@ -236,15 +236,32 @@ create or replace function public.admin_list_posters(p_pass text)
 returns json language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.admin_check(p_pass) then return json_build_object('ok', false, 'error', 'unauthorized'); end if;
+  -- Không trả cả ảnh (data URI có thể lớn) trong danh sách; chỉ báo có ảnh hay không.
   return json_build_object('ok', true, 'posters', coalesce((
     select json_agg(json_build_object(
-      'id', p.id, 'name', p.name, 'image_url', p.image_url,
+      'id', p.id, 'name', p.name, 'has_image', (p.image_url is not null),
       'sort_order', p.sort_order, 'active', p.active,
       'votes', (select count(*) from public.vote_selections s where s.poster_id = p.id)
     ) order by p.sort_order, p.id) from public.posters p
   ), '[]'::json));
 end; $$;
 
+-- Lấy đầy đủ 1 áp phích (kèm ảnh) để sửa.
+create or replace function public.admin_get_poster(p_pass text, p_id bigint)
+returns json language plpgsql security definer set search_path = public, extensions as $$
+declare v json;
+begin
+  if not public.admin_check(p_pass) then return json_build_object('ok', false, 'error', 'unauthorized'); end if;
+  select json_build_object('ok', true, 'poster', json_build_object(
+    'id', id, 'name', name, 'image_url', image_url, 'sort_order', sort_order, 'active', active))
+  into v from public.posters where id = p_id;
+  return coalesce(v, json_build_object('ok', false, 'error', 'not_found'));
+end; $$;
+
+-- Thêm/sửa áp phích. Quy ước ảnh (p_image_url):
+--   NULL            -> giữ nguyên ảnh cũ (khi sửa) / không ảnh (khi thêm)
+--   '' (rỗng)       -> xoá ảnh
+--   data URI / link -> đặt ảnh mới
 create or replace function public.admin_upsert_poster(
   p_pass text, p_id bigint, p_name text, p_image_url text, p_sort_order int, p_active boolean)
 returns json language plpgsql security definer set search_path = public, extensions as $$
@@ -254,12 +271,19 @@ begin
   if nullif(btrim(p_name), '') is null then return json_build_object('ok', false, 'error', 'name_required'); end if;
   if p_id is null then
     insert into public.posters(name, image_url, sort_order, active)
-      values (btrim(p_name), nullif(btrim(p_image_url), ''), coalesce(p_sort_order, 0), coalesce(p_active, true))
+      values (btrim(p_name),
+              case when p_image_url is null or btrim(p_image_url) = '' then null else p_image_url end,
+              coalesce(p_sort_order, 0), coalesce(p_active, true))
       returning id into v_id;
   else
     update public.posters
-      set name = btrim(p_name), image_url = nullif(btrim(p_image_url), ''),
-          sort_order = coalesce(p_sort_order, 0), active = coalesce(p_active, true)
+      set name = btrim(p_name),
+          image_url = case
+            when p_image_url is null then image_url          -- giữ ảnh cũ
+            when btrim(p_image_url) = '' then null            -- xoá ảnh
+            else p_image_url end,                             -- ảnh mới
+          sort_order = coalesce(p_sort_order, 0),
+          active = coalesce(p_active, true)
       where id = p_id returning id into v_id;
   end if;
   return json_build_object('ok', true, 'id', v_id);
@@ -365,6 +389,7 @@ grant execute on function public.get_results()                             to an
 grant execute on function public.get_state()                               to anon, authenticated;
 grant execute on function public.admin_set_voting_open(text, boolean)       to anon, authenticated;
 grant execute on function public.admin_list_posters(text)                   to anon, authenticated;
+grant execute on function public.admin_get_poster(text, bigint)             to anon, authenticated;
 grant execute on function public.admin_upsert_poster(text, bigint, text, text, int, boolean) to anon, authenticated;
 grant execute on function public.admin_delete_poster(text, bigint)          to anon, authenticated;
 grant execute on function public.admin_upload_roster(text, jsonb)           to anon, authenticated;
