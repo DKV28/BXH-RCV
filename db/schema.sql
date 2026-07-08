@@ -127,6 +127,7 @@ declare
   v_n      int;
   v_valid  int;
   v_uniq   int;
+  v_roster_name text;
 begin
   select voting_open, max_choices into v_open, v_max from public.settings where id = 1;
   if not v_open then
@@ -137,6 +138,15 @@ begin
   p_name := nullif(btrim(p_name), '');
   if p_code is null or p_name is null then
     return json_build_object('ok', false, 'error', 'missing_code_or_name');
+  end if;
+
+  -- Đối chiếu danh sách nhân viên NGAY lúc bình chọn: sai mã hoặc sai tên -> từ chối.
+  select employee_name into v_roster_name from public.staff_roster where employee_code = p_code;
+  if v_roster_name is null then
+    return json_build_object('ok', false, 'error', 'code_not_found');
+  end if;
+  if public.norm(v_roster_name) <> public.norm(p_name) then
+    return json_build_object('ok', false, 'error', 'name_mismatch');
   end if;
 
   v_n := coalesce(array_length(p_poster_ids, 1), 0);
@@ -161,7 +171,7 @@ begin
   end if;
 
   insert into public.votes(employee_code, employee_name)
-    values (p_code, p_name)
+    values (p_code, v_roster_name)   -- lưu tên chuẩn trong danh sách
     on conflict (employee_code)
     do update set employee_name = excluded.employee_name, updated_at = now()
     returning id into v_vote_id;
@@ -174,22 +184,35 @@ begin
 end;
 $$;
 
--- Nạp lại phiếu hiện tại của 1 mã để chủ mã sửa. Mã = "mật khẩu cá nhân".
-create or replace function public.get_my_vote(p_code text)
+-- Kiểm tra danh tính (mã + tên khớp danh sách) và nạp lại phiếu cũ để sửa.
+drop function if exists public.get_my_vote(text);
+create or replace function public.get_my_vote(p_code text, p_name text)
 returns json language plpgsql security definer
-set search_path = public as $$
+set search_path = public, extensions as $$
 declare
+  v_roster_name text;
   v_id   bigint;
-  v_name text;
   v_ids  bigint[];
 begin
   p_code := nullif(btrim(p_code), '');
-  if p_code is null then return json_build_object('found', false); end if;
-  select id, employee_name into v_id, v_name from public.votes where employee_code = p_code;
-  if v_id is null then return json_build_object('found', false); end if;
+  p_name := nullif(btrim(p_name), '');
+  if p_code is null or p_name is null then
+    return json_build_object('ok', true, 'valid', false, 'reason', 'missing_code_or_name');
+  end if;
+  select employee_name into v_roster_name from public.staff_roster where employee_code = p_code;
+  if v_roster_name is null then
+    return json_build_object('ok', true, 'valid', false, 'reason', 'code_not_found');
+  end if;
+  if public.norm(v_roster_name) <> public.norm(p_name) then
+    return json_build_object('ok', true, 'valid', false, 'reason', 'name_mismatch');
+  end if;
+  select id into v_id from public.votes where employee_code = p_code;
+  if v_id is null then
+    return json_build_object('ok', true, 'valid', true, 'found', false, 'name', v_roster_name);
+  end if;
   select coalesce(array_agg(poster_id), '{}') into v_ids
     from public.vote_selections where vote_id = v_id;
-  return json_build_object('found', true, 'name', v_name, 'poster_ids', v_ids);
+  return json_build_object('ok', true, 'valid', true, 'found', true, 'name', v_roster_name, 'poster_ids', v_ids);
 end;
 $$;
 
@@ -384,7 +407,7 @@ revoke execute on function public.admin_check(text) from public;
 revoke execute on function public.norm(text)        from public;
 
 grant execute on function public.cast_vote(text, text, bigint[])           to anon, authenticated;
-grant execute on function public.get_my_vote(text)                          to anon, authenticated;
+grant execute on function public.get_my_vote(text, text)                    to anon, authenticated;
 grant execute on function public.get_results()                             to anon, authenticated;
 grant execute on function public.get_state()                               to anon, authenticated;
 grant execute on function public.admin_set_voting_open(text, boolean)       to anon, authenticated;

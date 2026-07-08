@@ -53,12 +53,29 @@ $('intv').textContent = REFRESH;
 
 function setDot(ok){ $('dot').classList.toggle('err', !ok); }
 
+let posterImages = {};   // id -> image_url (tải 1 lần, không kéo lại mỗi 15s)
+
 if(!sb){
   $('setup').classList.remove('hidden');
 } else {
-  fetchData();
+  loadPosterImages().finally(()=>{ fetchData(); });
   setInterval(fetchData, REFRESH*1000);
   subscribeRealtime();
+}
+
+async function loadPosterImages(){
+  try{
+    const { data, error } = await sb.from('posters').select('id,image_url').eq('active', true);
+    if(error) throw error;
+    const map={}; (data||[]).forEach(p=>{ map[p.id]=p.image_url||''; });
+    posterImages = map;
+  }catch(e){ console.warn('Không tải được ảnh áp phích', e); }
+}
+
+function thumb(d){
+  const src = posterImages[d.id];
+  return src ? `<img src="${esc(src)}" alt="${esc(d.name)}" loading="lazy">`
+             : `<div class="ph">🖼️</div>`;
 }
 
 function render(data){
@@ -79,8 +96,8 @@ function render(data){
     podium.innerHTML+=`
       <div class="pcard ${cls}">
         <div class="rank">${idx+1}</div>
-        <div class="medal">${medals[idx]||''}</div>
-        <div class="name">${esc(d.name)}</div>
+        <div class="pthumb">${thumb(d)}</div>
+        <div class="name">${medals[idx]||''} ${esc(d.name)}</div>
         <div class="score">${fmt(d.votes)}<small> phiếu</small></div>
       </div>`;
   });
@@ -92,6 +109,7 @@ function render(data){
     bars.innerHTML+=`
       <div class="bar-row ${i===0?'top1':''}">
         <div class="bar-rank">${i+1}</div>
+        <div class="bar-thumb">${thumb(d)}</div>
         <div class="bar-name" title="${esc(d.name)}">${esc(d.name)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${pct}%"><span>${fmt(d.votes)}</span></div></div>
       </div>`;
@@ -107,6 +125,8 @@ async function fetchData(){
     if(error) throw error;
     setDot(true);
     const arr = (data||[]).filter(d=>d && d.name);
+    // có áp phích mới chưa có ảnh trong cache -> tải lại ảnh 1 lần rồi render
+    if(arr.some(d=>!(d.id in posterImages))){ await loadPosterImages(); }
     if(arr.length){ render(arr); }
     else if($('board').classList.contains('hidden')){ $('empty').classList.remove('hidden'); }
     // nếu đã render trước đó mà giờ rỗng: giữ nguyên số cũ, không xoá

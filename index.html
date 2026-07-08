@@ -37,7 +37,7 @@
         <div class="vote-id">
           <div>
             <label for="code">Mã nhân viên</label>
-            <input id="code" placeholder="VD: NV12345" autocomplete="off" maxlength="40">
+            <input id="code" placeholder="VD: TAx.12345" autocomplete="off" maxlength="40">
           </div>
           <div>
             <label for="name">Họ và tên</label>
@@ -47,8 +47,8 @@
             <button class="btn ghost" id="loadBtn" type="button">Xem / sửa phiếu</button>
           </div>
         </div>
-        <div class="hint" id="loadHint">Nhập mã + tên rồi chọn áp phích bên dưới. Nếu đã bình chọn, bấm
-          <b>Xem / sửa phiếu</b> để nạp lại lựa chọn cũ và chỉnh sửa (được đến khi ban tổ chức đóng bình chọn).</div>
+        <div class="hint" id="loadHint">Nhập <b>đúng mã nhân viên và họ tên</b> theo danh sách, rồi chọn áp phích bên dưới.
+          Nếu đã bình chọn, bấm <b>Xem / sửa phiếu</b> để nạp lại lựa chọn cũ và chỉnh sửa (được đến khi đóng bình chọn).</div>
       </div>
 
       <div class="section-title" id="gridTitle">Chọn áp phích yêu thích</div>
@@ -175,18 +175,25 @@ function updateBar(){
 
 $('loadBtn').addEventListener('click', loadMyVote);
 async function loadMyVote(){
-  const code = $('code').value.trim();
-  if(!code){ showMsg('Nhập mã nhân viên trước đã.', 'warn'); return; }
+  const code = $('code').value.trim(), name = $('name').value.trim();
+  if(!code || !name){ showMsg('Nhập cả mã nhân viên và họ tên trước đã.', 'warn'); return; }
   try{
-    const { data, error } = await sb.rpc('get_my_vote', { p_code: code });
+    const { data, error } = await sb.rpc('get_my_vote', { p_code: code, p_name: name });
     if(error) throw error;
     setDot(true);
-    if(!data || !data.found){ showMsg('Mã này chưa bình chọn. Bạn có thể chọn và gửi phiếu mới.', 'ok'); return; }
-    if(data.name && !$('name').value.trim()) $('name').value = data.name;
+    if(!data.valid){ showMsg(reasonText(data.reason), 'err'); return; }
+    if(!data.found){ showMsg('Thông tin hợp lệ. Bạn chưa bình chọn — hãy chọn áp phích và gửi phiếu.', 'ok'); return; }
     selected = new Set((data.poster_ids||[]).map(Number));
     renderGrid(); applyOpenState();
     showMsg('Đã nạp lại phiếu cũ của bạn — chỉnh sửa rồi bấm Gửi để cập nhật.', 'ok');
   }catch(e){ console.error(e); setDot(false); showMsg('Lỗi khi tải phiếu. Thử lại.', 'err'); }
+}
+function reasonText(r){
+  switch(r){
+    case 'code_not_found': return 'Mã nhân viên không có trong danh sách. Kiểm tra lại mã.';
+    case 'name_mismatch': return 'Họ tên không khớp với mã nhân viên. Kiểm tra lại họ tên.';
+    default: return 'Thiếu mã nhân viên hoặc họ tên.';
+  }
 }
 
 $('submitBtn').addEventListener('click', submitVote);
@@ -218,6 +225,8 @@ function errText(d){
   switch(d.error){
     case 'closed': return 'Bình chọn đã đóng, không thể gửi phiếu.';
     case 'missing_code_or_name': return 'Thiếu mã nhân viên hoặc họ tên.';
+    case 'code_not_found': return 'Mã nhân viên không có trong danh sách. Kiểm tra lại mã.';
+    case 'name_mismatch': return 'Họ tên không khớp với mã nhân viên. Kiểm tra lại họ tên.';
     case 'no_selection': return 'Chưa chọn áp phích nào.';
     case 'too_many': return 'Chỉ được chọn tối đa '+(d.max||MAX)+' áp phích.';
     case 'duplicate_selection': return 'Có áp phích bị chọn trùng.';

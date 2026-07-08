@@ -24,10 +24,11 @@ Supabase Postgres + Realtime
   posters · votes · vote_selections · settings · staff_roster · app_secrets
 ```
 
-- **Danh tính phiếu:** mỗi mã nhân viên chiếm 1 phiếu (khoá lại). Chủ mã **sửa được** lựa chọn
-  đến khi ban tổ chức đóng bình chọn (mã đóng vai "mật khẩu cá nhân").
-- **Lúc sự kiện:** đếm mọi phiếu có mã chưa dùng. **Cuối ngày:** đối chiếu (mã + tên) với
-  danh sách nhân viên chính thức để lọc phiếu hợp lệ (bỏ dấu, không phân biệt hoa thường).
+- **Danh tính phiếu:** nhân viên nhập **mã + họ tên**; phải **khớp danh sách nhân viên** đã upload
+  mới được vote (sai mã hoặc sai tên → báo lỗi ngay, đối chiếu bỏ dấu & không phân biệt hoa thường).
+  Mỗi mã chiếm 1 phiếu và **sửa được** lựa chọn đến khi ban tổ chức đóng bình chọn.
+- **Bắt buộc:** upload danh sách nhân viên **trước khi mở bình chọn** (nếu chưa có, mọi người bị
+  báo "mã không có trong danh sách"). Có thể xem lại kết quả đã đối chiếu bất cứ lúc nào ở admin.
 - **Bảo mật:** RLS bật mọi bảng; anon **không** đọc trực tiếp `votes`/`staff_roster`. Board chỉ
   nhận số liệu tổng hợp qua `get_results()` → không lộ tên/mã người vote. Admin bảo vệ bằng passphrase.
 - **Real-time:** board nghe thay đổi `vote_selections` qua Supabase Realtime + polling dự phòng 15s;
@@ -61,11 +62,13 @@ Schema đã tự thêm `vote_selections` vào publication `supabase_realtime`. N
 cần bật thủ công: **Database → Replication → `supabase_realtime`** → thêm bảng `vote_selections`.
 (Không bật cũng chạy — board sẽ dùng polling 15s.)
 
-### 5. Nhập áp phích qua admin
-Mở `admin.html` → nhập passphrase → mục **Áp phích**:
-- Nhập tên, **tải ảnh lên** (chọn file — ảnh tự động nén tối đa 1400px cho nhẹ) *hoặc* dán link ảnh.
-- Xem trước ở cột bên phải → **Thêm**. Có thể **Sửa / Ẩn / Xoá** từng áp phích sau đó.
-- Xong thì bấm **Mở bình chọn**.
+### 5. Nhập áp phích + danh sách nhân viên qua admin
+Mở `admin.html` → nhập passphrase, rồi làm theo thứ tự:
+1. Mục **Áp phích**: nhập tên, **tải ảnh lên** (chọn file — ảnh tự động nén tối đa 1400px cho nhẹ)
+   *hoặc* dán link ảnh → xem trước → **Thêm**. Có thể **Sửa / Ẩn / Xoá** sau đó.
+2. Mục **Danh sách nhân viên**: dán `mã,tên` (mỗi dòng 1 người — dán thẳng từ Excel được) → **Tải lên danh sách**.
+   ⚠️ **Bắt buộc làm trước khi mở bình chọn**, vì nhân viên phải khớp danh sách này mới vote được.
+3. Bấm **Mở bình chọn**.
 
 > Ảnh được lưu thẳng trong database (dưới dạng data URI đã nén) nên **không cần cấu hình Supabase Storage**.
 > Người bình chọn bấm 🔍 trên mỗi áp phích để xem phóng to trước khi chọn.
@@ -81,9 +84,10 @@ Có thể mở thẳng bằng Chrome từ máy để thử, nhưng nên deploy �
 
 ## Cuối ngày – chốt kết quả
 
-1. Trong `admin.html`, mục **Danh sách nhân viên**: dán CSV `mã,tên` (mỗi dòng 1 người) → **Tải lên**.
-2. Bấm **Đóng bình chọn**.
-3. Bấm **Tính kết quả cuối** → xem kết quả đã đối chiếu + danh sách phiếu bị loại → **Export CSV**.
+Vì phiếu đã được đối chiếu danh sách ngay lúc bình chọn nên kết quả trên `board.html` chính là kết quả chính thức.
+Để lưu lại:
+1. Trong `admin.html` bấm **Đóng bình chọn**.
+2. Mục **Kết quả CUỐI** → **Tính kết quả cuối** → **Export CSV** (đồng thời rà lại nếu bạn có chỉnh sửa danh sách sau đó).
 
 ## Cấu trúc file
 

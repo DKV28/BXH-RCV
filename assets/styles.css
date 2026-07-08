@@ -76,7 +76,11 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-wei
 .pcard.p2 .rank{background:var(--silver)}
 .pcard.p3 .rank{background:var(--bronze)}
 .pcard .medal{font-size:34px;margin-bottom:8px}
-.pcard .name{font-size:19px;font-weight:700;line-height:1.3;margin-bottom:10px;min-height:50px;display:flex;align-items:center;justify-content:center}
+.pcard .pthumb{height:150px;margin-bottom:12px;border-radius:12px;overflow:hidden;background:#0c1220;display:flex;align-items:center;justify-content:center}
+.pcard.p1 .pthumb{height:190px}
+.pcard .pthumb img{width:100%;height:100%;object-fit:contain}
+.pcard .pthumb .ph{font-size:40px;color:var(--muted)}
+.pcard .name{font-size:19px;font-weight:700;line-height:1.3;margin-bottom:10px;min-height:50px;display:flex;align-items:center;justify-content:center;gap:6px}
 .pcard .score{font-size:40px;font-weight:800;color:var(--orange)}
 .pcard .score small{font-size:15px;color:var(--muted);font-weight:500}
 
@@ -84,6 +88,9 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-wei
 .bars{max-width:1100px;margin:0 auto;position:relative}
 .bar-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
 .bar-rank{width:30px;text-align:center;font-weight:700;color:var(--muted);font-size:16px}
+.bar-thumb{width:42px;height:54px;flex:0 0 42px;border-radius:6px;overflow:hidden;background:#0c1220;display:flex;align-items:center;justify-content:center}
+.bar-thumb img{width:100%;height:100%;object-fit:contain}
+.bar-thumb .ph{font-size:16px;color:var(--muted)}
 .bar-name{width:230px;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar-track{flex:1;background:rgba(255,255,255,.05);border-radius:10px;height:30px;position:relative;overflow:hidden}
 .bar-fill{height:100%;background:linear-gradient(90deg,var(--orange-dark),var(--orange));border-radius:10px;width:0;transition:width 1s cubic-bezier(.2,.8,.2,1);display:flex;align-items:center;justify-content:flex-end;padding-right:12px;min-width:fit-content}

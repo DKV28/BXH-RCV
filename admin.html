@@ -87,9 +87,10 @@
 
     <!-- Danh sách nhân viên (roster) -->
     <div class="card">
-      <h2 class="sec">Danh sách nhân viên <small>để đối chiếu cuối ngày</small></h2>
-      <p class="muted" style="margin-bottom:8px">Dán mỗi dòng: <code>mã,tên</code> (hoặc mã &lt;tab&gt; tên). Dòng đầu là tiêu đề sẽ tự bỏ nếu không phải mã hợp lệ.</p>
-      <textarea id="rosterText" placeholder="NV12345,Nguyễn Văn A&#10;NV12346,Trần Thị B"></textarea>
+      <h2 class="sec">Danh sách nhân viên <small>⚠️ tải lên TRƯỚC khi mở bình chọn</small></h2>
+      <p class="muted" style="margin-bottom:8px">Nhân viên chỉ vote được khi <b>mã + họ tên khớp</b> danh sách này.
+        Dán mỗi dòng: <code>mã,tên</code> (hoặc mã &lt;tab&gt; tên — tiện dán từ Excel). Dòng tiêu đề sẽ tự bỏ.</p>
+      <textarea id="rosterText" placeholder="TAx.12345,Nguyễn Văn A&#10;TAx.12346,Trần Thị B"></textarea>
       <div class="row" style="margin-top:10px">
         <button class="btn" id="uploadRoster">Tải lên danh sách</button>
         <span class="muted" id="rosterMsg"></span>
