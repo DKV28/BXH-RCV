@@ -6,79 +6,59 @@
 <title>Bảng bình chọn áp phích – RCV WPSD 2026</title>
 <link rel="stylesheet" href="assets/styles.css">
 <style>
-  /* Chế độ TV 16:9: khung 1920x1080 tự co giãn (scale-to-fit) vừa mọi màn hình, không cuộn, không xén */
-  html,body{overflow:hidden;background:var(--bg)}
-  #stage{width:1920px;height:1080px;position:absolute;top:0;left:0;transform-origin:top left;overflow:hidden}
-  #stage header{padding:22px 60px 6px}
-  #stage main{padding:6px 60px 16px}
-  #stage .brand h1{font-size:40px}
-  /* podium gọn lại để chừa chỗ cho bảng xếp hạng */
-  #stage .podium{max-width:1180px;margin-bottom:14px}
-  #stage .pcard{padding:14px 18px}
-  #stage .pcard .pthumb{height:120px;margin-bottom:9px}
-  #stage .pcard.p1 .pthumb{height:148px}
-  #stage .pcard.p1{padding-bottom:40px}
-  #stage .pcard .name{font-size:18px;min-height:40px;margin-bottom:6px}
-  #stage .pcard .score{font-size:31px}
-  #stage .section-title{max-width:1800px;margin-bottom:10px}
-  /* bar race 2 cột, dùng hết chiều ngang -> hiện được nhiều hạng hơn */
-  #stage .bars{max-width:1800px;display:grid;grid-template-columns:1fr 1fr;gap:6px 48px}
-  #stage .bar-row{margin-bottom:0}
-  #stage .bar-thumb{width:34px;height:44px;flex:0 0 34px}
-  #stage .bar-name{width:190px}
-  #stage .bar-track{height:25px}
-  #stage .footer{margin-top:10px}
-  #stage .more-note{max-width:1800px;margin:12px auto 0;text-align:center;color:var(--muted);font-size:15px;font-weight:600}
+  /* Bảng xếp hạng thích ứng: 2 cột trên màn rộng, tự về 1 cột khi hẹp */
+  .bars{max-width:1600px;display:grid;grid-template-columns:1fr 1fr;gap:10px 48px}
+  .section-title{max-width:1600px}
+  .more-note{max-width:1600px;margin:14px auto 4px;text-align:center;color:var(--muted);font-size:15px;font-weight:600}
+  @media(max-width:1100px){ .bars{grid-template-columns:1fr;max-width:1100px} }
 </style>
 </head>
 <body>
 
-<div id="stage">
-  <div class="blob b3"></div>
-  <div class="ribbon"></div>
+<div class="blob b3"></div>
+<div class="ribbon"></div>
 
-  <!-- Khung QR: đặt file assets/qr.png (mã QR trỏ tới link trang bình chọn) -->
-  <div class="qr-box">
-    <div class="qr-placeholder" id="qrPlaceholder">Đặt mã QR<br>bình chọn<br>(assets/qr.png)</div>
-    <img id="qrImg" src="assets/qr.png" alt="QR bình chọn" class="hidden"
-         onload="document.getElementById('qrPlaceholder').classList.add('hidden'); this.classList.remove('hidden')"
-         onerror="this.classList.add('hidden')">
-    <div class="qr-label">Quét mã để<br>bình chọn ngay</div>
+<!-- Khung QR: file assets/qr.png (mã QR trỏ tới link trang bình chọn) -->
+<div class="qr-box">
+  <div class="qr-placeholder" id="qrPlaceholder">Đặt mã QR<br>bình chọn<br>(assets/qr.png)</div>
+  <img id="qrImg" src="assets/qr.png" alt="QR bình chọn" class="hidden"
+       onload="document.getElementById('qrPlaceholder').classList.add('hidden'); this.classList.remove('hidden')"
+       onerror="this.classList.add('hidden')">
+  <div class="qr-label">Quét mã để<br>bình chọn ngay</div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="sub">RUNG CHUÔNG VÀNG · WPSD 2026</div>
+    <h1>Bảng bình chọn áp phích</h1>
+  </div>
+  <div class="status">
+    <span class="total-votes" id="totalVotes"></span>
+    <span id="updated">—</span>
+    <span class="dot" id="dot"></span>
+  </div>
+</header>
+
+<main>
+  <div class="setup hidden" id="setup">
+    <h2>⚙️ Chưa cấu hình Supabase</h2>
+    <p>Điền <code>SUPABASE_URL</code> + <code>SUPABASE_ANON_KEY</code> trong <code>assets/config.js</code>
+       và chạy <code>db/schema.sql</code>. Xem <code>README.md</code>.</p>
   </div>
 
-  <header>
-    <div class="brand">
-      <div class="sub">RUNG CHUÔNG VÀNG · WPSD 2026</div>
-      <h1>Bảng bình chọn áp phích</h1>
-    </div>
-    <div class="status">
-      <span class="total-votes" id="totalVotes"></span>
-      <span id="updated">—</span>
-      <span class="dot" id="dot"></span>
-    </div>
-  </header>
+  <div id="board" class="hidden">
+    <div class="podium" id="podium"></div>
+    <div class="section-title">Bảng xếp hạng</div>
+    <div class="bars" id="bars"></div>
+    <div class="more-note hidden" id="moreNote"></div>
+    <div class="footer">Cập nhật real-time · Tự làm mới mỗi <span id="intv">15</span> giây</div>
+  </div>
 
-  <main>
-    <div class="setup hidden" id="setup">
-      <h2>⚙️ Chưa cấu hình Supabase</h2>
-      <p>Điền <code>SUPABASE_URL</code> + <code>SUPABASE_ANON_KEY</code> trong <code>assets/config.js</code>
-         và chạy <code>db/schema.sql</code>. Xem <code>README.md</code>.</p>
-    </div>
-
-    <div id="board" class="hidden">
-      <div class="podium" id="podium"></div>
-      <div class="section-title">Bảng xếp hạng</div>
-      <div class="bars" id="bars"></div>
-      <div class="more-note hidden" id="moreNote"></div>
-      <div class="footer">Cập nhật real-time · Tự làm mới mỗi <span id="intv">15</span> giây</div>
-    </div>
-
-    <div class="setup hidden" id="empty">
-      <h2>Chưa có dữ liệu</h2>
-      <p class="muted">Chưa có áp phích hoặc chưa có phiếu nào. Thêm áp phích trong trang quản trị và mở bình chọn.</p>
-    </div>
-  </main>
-</div>
+  <div class="setup hidden" id="empty">
+    <h2>Chưa có dữ liệu</h2>
+    <p class="muted">Chưa có áp phích hoặc chưa có phiếu nào. Thêm áp phích trong trang quản trị và mở bình chọn.</p>
+  </div>
+</main>
 
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/config.js"></script>
@@ -89,21 +69,11 @@ const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
 const medals = ['🥇','🥈','🥉'];
 const REFRESH = (window.APP_CONFIG.REFRESH_SECONDS)||15;
-// Số hạng hiển thị trong bảng xếp hạng trên màn hình lớn (2 cột). Podium đã gồm top 3.
-const BOARD_MAX_BARS = (window.APP_CONFIG.BOARD_MAX_BARS)||20;
+// Giới hạn số hạng trong bảng xếp hạng. 0 = hiển thị tất cả (mặc định). Đặt số >0 trong config.js để giới hạn.
+const BOARD_MAX_BARS = (window.APP_CONFIG.BOARD_MAX_BARS)||0;
 $('intv').textContent = REFRESH;
 
 function setDot(ok){ $('dot').classList.toggle('err', !ok); }
-
-// Scale-to-fit: co giãn khung 1920x1080 vừa màn hình, căn giữa (letterbox), không xén.
-function fitStage(){
-  const s = Math.min(innerWidth/1920, innerHeight/1080);
-  const st = $('stage');
-  st.style.transform = 'scale('+s+')';
-  st.style.left = Math.round((innerWidth - 1920*s)/2)+'px';
-  st.style.top  = Math.round((innerHeight - 1080*s)/2)+'px';
-}
-addEventListener('resize', fitStage); fitStage();
 
 let posterImages = {};   // id -> image_url (tải 1 lần, không kéo lại mỗi 15s)
 
@@ -154,8 +124,9 @@ function render(data){
       </div>`;
   });
 
-  // BAR RACE (giới hạn top N để vừa màn hình lớn; xếp 2 cột)
-  const shown = data.slice(0, BOARD_MAX_BARS);
+  // BAR RACE (2 cột trên màn rộng); giới hạn nếu BOARD_MAX_BARS > 0
+  const cap = BOARD_MAX_BARS>0 ? BOARD_MAX_BARS : data.length;
+  const shown = data.slice(0, cap);
   const bars=$('bars'); bars.innerHTML='';
   shown.forEach((d,i)=>{
     const pct=(d.votes/max*100).toFixed(1);
